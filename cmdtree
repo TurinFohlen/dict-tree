@@ -1,0 +1,235 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# === BEGIN METADATA ===
+# name: cmdtree
+# description: 命令行界面 - 自用字典树的主入口程序
+# usage: cmdtree [scan|search|explain|stats] [args...]
+# version: 1.1.0
+# author: TurinFohlen
+# dependencies: python3, query-engine
+# tags: CLI, 用户界面
+# === END METADATA ===
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# 脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 默认扫描目录
+DEFAULT_SCAN_DIR="$HOME/bin"
+
+show_banner() {
+    echo -e "${BLUE}"
+    echo "╔═══════════════════════════════════════════╗"
+    echo "║      🌳 自用字典树 v1.1.0                 ║"
+    echo "║      智能命令索引与查询系统                ║"
+    echo "╚═══════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+show_help() {
+    cat << EOF
+${GREEN}用法：${NC}
+  cmdtree scan [directory]     扫描目录并建立索引（默认: ~/bin）
+  cmdtree search <query>       搜索命令（支持自然语言）
+  cmdtree explain [-p PROVIDER] <command>  使用AI解释命令
+  cmdtree stats                显示索引统计信息
+  cmdtree help                 显示此帮助信息
+
+${YELLOW}示例：${NC}
+  cmdtree scan ~/scripts              # 扫描自定义脚本目录
+  cmdtree search "批量重命名"          # 自然语言搜索
+  cmdtree search file                 # 关键词搜索
+  cmdtree explain -p gemini ls        # 用Gemini解释ls
+  cmdtree explain cmdtree             # 用默认提供商解释自身
+
+${BLUE}提示：${NC}
+  首次使用请先运行 'cmdtree scan' 建立索引
+  设置对应 API KEY 环境变量以启用 AI 功能
+EOF
+}
+
+cmd_scan() {
+    local dir="${1:-$DEFAULT_SCAN_DIR}"
+    echo -e "${GREEN}📁 扫描目录: $dir${NC}"
+    
+    (
+        cd "$SCRIPT_DIR"
+        python3 << PYEOF
+import sys
+sys.path.insert(0, ".")
+from file_scanner import FileScanner
+from storage_tree import StorageTree
+
+scanner = FileScanner()
+storage = StorageTree()
+
+commands = scanner.scan_directory("$dir")
+for cmd in commands:
+    storage.insert_command(cmd)
+
+storage.save_to_disk()
+
+stats = scanner.get_statistics()
+print(f"\n📊 扫描统计：")
+print(f"  总文件数: {stats['total_files']}")
+print(f"  有效命令: {stats['valid_commands']}")
+print(f"  覆盖率: {stats['coverage_rate']}")
+PYEOF
+    )
+}
+
+cmd_search() {
+    local query="$*"
+    if [ -z "$query" ]; then
+        echo -e "${RED}❌ 请提供搜索关键词${NC}"
+        return 1
+    fi
+    echo -e "${BLUE}🔍 搜索: $query${NC}\n"
+    
+    (
+        cd "$SCRIPT_DIR"
+        python3 << PYEOF
+import sys
+sys.path.insert(0, ".")
+from query_engine import QueryEngine
+
+engine = QueryEngine()
+results = engine.query("$query")
+
+if not results:
+    print("😕 没有找到匹配的命令")
+    print("\n💡 提示：")
+    print("  1. 尝试使用其他关键词")
+    print("  2. 运行 'cmdtree scan' 更新索引")
+else:
+    print(f"找到 {len(results)} 个匹配的命令：\n")
+    for i, cmd in enumerate(results, 1):
+        name = cmd['name']
+        desc = cmd['description']
+        match_type = cmd['match_type']
+        filepath = cmd.get('filepath', '')
+        
+        type_emoji = {
+            'exact_match': '🎯',
+            'tag_match': '🏷️ ',
+            'keyword_match': '🔑',
+            'ai_recommendation': '🤖'
+        }
+        emoji = type_emoji.get(match_type, '📝')
+        
+        print(f"{emoji} [{i}] {name}")
+        print(f"    描述: {desc}")
+        print(f"    路径: {filepath}")
+        
+        if 'usage' in cmd:
+            print(f"    用法: {cmd['usage']}")
+        
+        if 'ai_reason' in cmd:
+            print(f"    💭 AI推荐理由: {cmd['ai_reason']}")
+        
+        print()
+PYEOF
+    )
+}
+
+cmd_explain() {
+    local provider=""
+    local command=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|--provider)
+                provider="$2"
+                shift 2
+                ;;
+            -*)
+                echo "未知选项: $1"
+                return 1
+                ;;
+            *)
+                command="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$command" ]; then
+        echo -e "${RED}❌ 请提供要解释的命令名${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}🤖 正在使用AI解释命令: $command${NC}"
+    if [ -n "$provider" ]; then
+        echo -e "${YELLOW}📌 使用提供商: $provider${NC}"
+        export AI_PROVIDER="$provider"
+    fi
+
+    (
+        cd "$SCRIPT_DIR"
+        python3 << PYEOF
+import sys
+sys.path.insert(0, ".")
+from query_engine import QueryEngine
+
+engine = QueryEngine()
+explanation = engine.explain_command("$command")
+if explanation:
+    print(explanation)
+else:
+    print("😕 无法解释此命令")
+    print("可能原因：")
+    print("  1. 命令不存在于索引中")
+    print("  2. AI功能未启用（需设置对应 API Key）")
+PYEOF
+    )
+}
+
+cmd_stats() {
+    (
+        cd "$SCRIPT_DIR"
+        python3 << PYEOF
+import sys
+sys.path.insert(0, ".")
+from storage_tree import StorageTree
+
+storage = StorageTree()
+storage.load_from_disk()
+stats = storage.get_statistics()
+print(f"📊 索引统计信息")
+print(f"  总命令数: {stats['total_commands']}")
+print(f"  总标签数: {stats['total_tags']}")
+print(f"  索引文件: {stats['storage_file']}")
+PYEOF
+    )
+}
+
+# 主逻辑
+case "$1" in
+    scan)
+        show_banner
+        cmd_scan "${@:2}"
+        ;;
+    search)
+        cmd_search "${@:2}"
+        ;;
+    explain)
+        cmd_explain "${@:2}"
+        ;;
+    stats)
+        cmd_stats
+        ;;
+    help|--help|-h|"")
+        show_banner
+        show_help
+        ;;
+    *)
+        echo -e "${RED}❌ 未知命令: $1${NC}"
+        echo "运行 'cmdtree help' 查看帮助"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.log
+*.pid
+.command_index.json
+*.bak
+.DS_Store

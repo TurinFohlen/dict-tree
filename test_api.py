@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # === BEGIN METADATA ===
-# name: test-api
+# name: test_api
 # description: 测试DeepSeek API是否可用的最小脚本
 # usage: test-api
 # version: 1.0.0

@@ -3,22 +3,27 @@
 # name: deepseek
 # description: DeepSeek API 的 AI 提供商实现
 # usage: 由 query_engine 动态加载，用于命令解释和文本生成
-# version: 1.0.0
+# version: 1.1.0
 # author: TurinFohlen
-# dependencies: requests, ai_provider_base
+# dependencies: requests, ai_providers.base
 # tags: AI, deepseek, 提供商
 # === END METADATA ===
 
 import os
 import requests
-import sys
 from .base import AIProvider
 
 class DeepSeekProvider(AIProvider):
-    def __init__(self):
-        self.api_key = os.getenv('DEEPSEEK_API_KEY')
+    def __init__(self, api_key: str = None):
+        """
+        初始化DeepSeek提供商
+        
+        Args:
+            api_key: API密钥（优先使用传入的密钥，否则从环境变量读取）
+        """
+        self.api_key = api_key or os.getenv('DEEPSEEK_API_KEY')
         if not self.api_key:
-            raise ValueError("DEEPSEEK_API_KEY 环境变量未设置")
+            raise ValueError("需要提供 DEEPSEEK_API_KEY")
         self.api_endpoint = "https://api.deepseek.com/v1/chat/completions"
 
     def generate(self, prompt: str, **kwargs) -> str:

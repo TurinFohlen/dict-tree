@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # === BEGIN METADATA ===
-# name: metadata-parser
+# name: metadata_parser
 # description: 解析脚本文件中的元数据注释块
 # version: 1.0.0
 # author: TurinFohlen

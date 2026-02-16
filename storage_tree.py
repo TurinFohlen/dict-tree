@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # === BEGIN METADATA ===
-# name: storage-tree
+# name: storage_tree
 # description: 基于Trie树结构的命令元数据存储系统
 # version: 1.0.0
 # author: TurinFohlen

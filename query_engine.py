@@ -30,68 +30,68 @@ class QueryEngine:
         self.ai_provider = None  # 延迟加载
         
 
-   	def _ensure_ai_provider(self):
-	    """确保AI提供商已加载（需要时才加载）"""
-	    if self.ai_provider is not None:
-	        return True
-	
-	    provider_name = os.getenv('AI_PROVIDER', 'deepseek').lower()
-	
-	    # 1. 硬编码映射（优先级高）
-	    hardcoded_map = {
-	        'deepseek': 'DeepSeekProvider',
-	        'gemini': 'GeminiProvider',
-	        'claude': 'ClaudeProvider',
-	        'groq': 'GroqProvider',
-	    }
-	
-	    # 2. 动态发现 ai_providers 目录下的其他模块
-	    dynamic_map = {}
-	    # 获取当前文件所在目录的绝对路径
-	    current_dir = os.path.dirname(os.path.abspath(__file__))
-	    providers_dir = os.path.join(current_dir, 'ai_providers')
-	    if os.path.exists(providers_dir):
-	        for f in os.listdir(providers_dir):
-	            if f.endswith('.py') and f not in ('__init__.py', 'base.py'):
-	                module_name = f[:-3]  # 去掉 .py
-	                # 约定类名：模块名首字母大写 + 'Provider'
-	                class_name = module_name.capitalize() + 'Provider'
-	                dynamic_map[module_name] = class_name
-	
-	    # 合并映射（硬编码优先，冲突时硬编码覆盖动态）
-	    full_map = {**dynamic_map, **hardcoded_map}
-	
-	    if provider_name not in full_map:
-	        print(f"⚠️ 未知的 AI 提供商: {provider_name}，可用: {list(full_map.keys())}")
-	        return False
-	
-	    # 如果没有API密钥，提示用户输入
-	    if not self.api_key:
-	        print(f"\n🔐 使用 {provider_name.upper()} AI 功能需要 API 密钥")
-	        print("提示：输入的密钥仅保存在内存中，不会写入任何文件")
-	        try:
-	            self.api_key = getpass.getpass(f"请输入 {provider_name.upper()} API 密钥（输入时不显示）: ")
-	            if not self.api_key or not self.api_key.strip():
-	                print("❌ 未输入 API 密钥，AI 功能将被禁用")
-	                return False
-	        except KeyboardInterrupt:
-	            print("\n❌ 已取消，AI 功能将被禁用")
-	            return False
-	
-	    module_name = f"ai_providers.{provider_name}"
-	    class_name = full_map[provider_name]
-	
-	    try:
-	        module = importlib.import_module(module_name)
-	        provider_class = getattr(module, class_name)
-	        self.ai_provider = provider_class(api_key=self.api_key)
-	        print(f"✅ 已加载 AI 提供商: {provider_name}")
-	        return True
-	    except Exception as e:
-	        print(f"⚠️ 无法加载 AI 提供商 {provider_name}：{e}")
-	        import traceback
-	        traceback.print_exc()
-	        return False	
+    def _ensure_ai_provider(self):
+        """确保AI提供商已加载（需要时才加载）"""
+        if self.ai_provider is not None:
+            return True
+    
+        provider_name = os.getenv('AI_PROVIDER', 'deepseek').lower()
+    
+        # 1. 硬编码映射（优先级高）
+        hardcoded_map = {
+            'deepseek': 'DeepSeekProvider',
+            'gemini': 'GeminiProvider',
+            'claude': 'ClaudeProvider',
+            'groq': 'GroqProvider',
+        }
+    
+        # 2. 动态发现 ai_providers 目录下的其他模块
+        dynamic_map = {}
+        # 获取当前文件所在目录的绝对路径
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        providers_dir = os.path.join(current_dir, 'ai_providers')
+        if os.path.exists(providers_dir):
+            for f in os.listdir(providers_dir):
+                if f.endswith('.py') and f not in ('__init__.py', 'base.py'):
+                    module_name = f[:-3]  # 去掉 .py
+                    # 约定类名：模块名首字母大写 + 'Provider'
+                    class_name = module_name.capitalize() + 'Provider'
+                    dynamic_map[module_name] = class_name
+    
+        # 合并映射（硬编码优先，冲突时硬编码覆盖动态）
+        full_map = {**dynamic_map, **hardcoded_map}
+    
+        if provider_name not in full_map:
+            print(f"⚠️ 未知的 AI 提供商: {provider_name}，可用: {list(full_map.keys())}")
+            return False
+    
+        # 如果没有API密钥，提示用户输入
+        if not self.api_key:
+            print(f"\n🔐 使用 {provider_name.upper()} AI 功能需要 API 密钥")
+            print("提示：输入的密钥仅保存在内存中，不会写入任何文件")
+            try:
+                self.api_key = getpass.getpass(f"请输入 {provider_name.upper()} API 密钥（输入时不显示）: ")
+                if not self.api_key or not self.api_key.strip():
+                    print("❌ 未输入 API 密钥，AI 功能将被禁用")
+                    return False
+            except KeyboardInterrupt:
+                print("\n❌ 已取消，AI 功能将被禁用")
+                return False
+    
+        module_name = f"ai_providers.{provider_name}"
+        class_name = full_map[provider_name]
+    
+        try:
+            module = importlib.import_module(module_name)
+            provider_class = getattr(module, class_name)
+            self.ai_provider = provider_class(api_key=self.api_key)
+            print(f"✅ 已加载 AI 提供商: {provider_name}")
+            return True
+        except Exception as e:
+            print(f"⚠️ 无法加载 AI 提供商 {provider_name}：{e}")
+            import traceback
+            traceback.print_exc()
+            return False    
     def query(self, query_text: str, use_ai: bool = True) -> List[Dict]:
         """执行查询"""
         results = []

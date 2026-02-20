@@ -1,7 +1,6 @@
+data/
+*.meta
+*.sh
+.command_index.json
 __pycache__/
 *.pyc
-*.log
-*.pid
-.command_index.json
-*.bak
-.DS_Store
